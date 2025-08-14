@@ -4,6 +4,31 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 
+typedef enum {
+    PROTO_HELLO,
+} proto_type_e;
+
+//  TLV
+typedef struct{
+    proto_type_e type;
+    unsigned short len;
+} proto_hdr_t;
+
+void handle_client(int fd) {
+    char buf[4096] = {0};
+    proto_hdr_t *hdr = buf;
+    hdr->type = htonl(PROTO_HELLO);
+    hdr->len = sizeof(int);
+    int reallen = hdr->len;
+    hdr->len = htons(hdr->len);
+
+    int *data = (int*)&hdr[1];
+    *data = htonl(1);
+
+    write(fd, hdr, sizeof(proto_hdr_t) + reallen);
+}
+
+
 int main() {
     struct sockaddr_in clientInfo = {0}; 
     int clientSize = 0;
@@ -33,14 +58,20 @@ int main() {
         close(fd);
         return -1;
     }
-    // accept 
-    int cfd = accept(fd, (struct sockaddr*)&clientInfo, &clientSize);
-    if(cfd == -1) {
-        perror("accept");
-        close(fd);
-        return -1;
-    }
 
-    close(cfd);
+
+    while(1) {
+        // accept 
+        int cfd = accept(fd, (struct sockaddr*)&clientInfo, &clientSize);
+        if(cfd == -1) {
+            perror("accept");
+            close(fd);
+            return -1;
+        }
+
+        handle_client(cfd);
+        close(cfd);
+    }
+      
     // close(fd);
 }
